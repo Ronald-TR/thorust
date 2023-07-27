@@ -1,0 +1,42 @@
+type: grpc
+services:
+  # name must be unique
+  - name: foo
+    tests:
+      - name: test1 foo
+        # each test id must be unique
+        # that is, the test id must be unique across all services
+        id: test1
+        command: sleep 3; echo "test1 foo"
+      - name: test2 foo
+        id: test2
+        command: sleep 3; echo "test2 foo"; exit 1
+      - name: test3 foo
+        id: test3
+        command: sleep 3; echo "test3 foo"
+      - name: test4 foo
+        id: test4
+        depends_on: [test2, test3]
+        command: sleep 3; echo "test4 foo"
+      - name: test5 foo
+        depends_on: [test1, test3]
+        id: test5
+        command: sleep 3; echo "test5 foo"
+      - name: test6 foo
+        depends_on: [test4, test5]
+        id: test6
+        command: sleep 3; echo "test6 foo"
+      - name: test7 foo
+        id: test7
+        depends_on: [test4, test5]
+        command: sleep 3; echo "test7 foo"
+
+  - name: bar
+    tests:
+      - name: test1 bar
+        id: test1
+        depends_on: [foo.test7]
+        command: sleep 3; echo "test1 bar"
+      - name: test2 bar
+        id: test2
+        command: sleep 3; echo "test2 bar"
