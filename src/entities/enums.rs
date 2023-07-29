@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
-#[derive(Debug, Clone, Copy, PartialEq, Display, EnumString)]
+#[derive(Debug, Clone, Copy, PartialEq, Display, EnumString, Serialize, Deserialize)]
 pub enum TestStatus {
     // When the test is waiting to be started
     NotStarted,

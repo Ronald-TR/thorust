@@ -1,5 +1,7 @@
 use std::fmt::{Debug, Display};
 
+use serde::{Deserialize, Serialize};
+
 use super::{enums::TestStatus, executable::TestExecutable};
 
 pub struct FilterOptions {
@@ -8,7 +10,7 @@ pub struct FilterOptions {
     pub index: Option<u32>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TestNode {
     pub id: String,
     pub index: u32,

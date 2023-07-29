@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use thorust::{
+    api::run_server,
     parser::parse,
     runner::Runner,
     traits::{GraphWorkflow, RunnerWorkflow},
@@ -20,6 +21,11 @@ struct ThorustCmd {
 #[derive(Subcommand)]
 enum Commands {
     Run {
+        /// Manifest file to read
+        #[clap(short, long)]
+        file: String,
+    },
+    Api {
         /// Manifest file to read
         #[clap(short, long)]
         file: String,
@@ -48,11 +54,15 @@ async fn main() -> Result<()> {
             let workflow = Workflow::new(&manifest).unwrap();
             let mut runner = Runner::new(workflow);
             runner.run_until_complete().await?;
+            println!("{}", runner.workflow.read().await.as_json());
+        }
+        Commands::Api { file } => {
+            run_server(&file).await?;
         }
         Commands::Dot { file } => {
             let manifest = parse(&file).unwrap();
             let workflow = Workflow::new(&manifest).unwrap();
-            workflow.print_dot();
+            println!("{}", workflow.as_dot());
         }
     }
     Ok(())

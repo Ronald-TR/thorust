@@ -7,29 +7,26 @@ use crate::{
     workflow::Workflow,
 };
 use anyhow::Result;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 // use tracing::{event, Level};
-pub mod grpc;
-pub mod http;
-pub mod shell;
 
 pub struct Runner {
-    pub workflow: Arc<Mutex<Workflow>>,
+    pub workflow: Arc<RwLock<Workflow>>,
 }
 
 impl Runner {
     pub fn new(workflow: Workflow) -> Self {
         Self {
-            workflow: Arc::new(Mutex::new(workflow)),
+            workflow: Arc::new(RwLock::new(workflow)),
         }
     }
 }
 
 /// Wrapper that executes a single test node
-async fn execute_node(node: &TestNode, workflow: Arc<Mutex<Workflow>>) -> Result<String> {
+async fn execute_node(node: &TestNode, workflow: Arc<RwLock<Workflow>>) -> Result<String> {
     // Set the test status to Running
     workflow
-        .lock()
+        .write()
         .await
         .update_graph_status(node.index, &TestStatus::Running);
     log_change_status(&node, &TestStatus::Running, false);
@@ -37,7 +34,7 @@ async fn execute_node(node: &TestNode, workflow: Arc<Mutex<Workflow>>) -> Result
         // Set the test status to Completed
         Ok(output) => {
             workflow
-                .lock()
+                .write()
                 .await
                 .update_graph_status(node.index, &TestStatus::Completed);
             log_change_status(&node, &TestStatus::Completed, true);
@@ -46,7 +43,7 @@ async fn execute_node(node: &TestNode, workflow: Arc<Mutex<Workflow>>) -> Result
         // Set the test status to Failed
         Err(err) => {
             workflow
-                .lock()
+                .write()
                 .await
                 .update_graph_status(node.index, &TestStatus::Failed);
             log_change_status(&node, &TestStatus::Failed, true);
@@ -77,14 +74,14 @@ impl RunnerWorkflow for Runner {
     async fn run_until_complete(&mut self) -> Result<()> {
         let start_duration = std::time::Instant::now();
         loop {
-            let availables = self.workflow.lock().await.availables()?;
+            let availables = self.workflow.read().await.availables()?;
             if availables.is_empty() {
                 break;
             }
             self.batch_execute(availables).await?;
         }
         let finish_duration = std::time::Instant::now();
-        log_report(self.workflow.lock().await, finish_duration - start_duration);
+        log_report(self.workflow.read().await, finish_duration - start_duration);
         Ok(())
     }
 }

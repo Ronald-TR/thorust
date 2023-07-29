@@ -95,11 +95,15 @@ impl GraphWorkflow for Workflow {
         );
         graph
     }
-    fn print_dot(&self) {
-        println!(
+    fn as_dot(&self) -> String {
+        format!(
             "{}",
             Dot::with_config(&self.graph, &[Config::EdgeIndexLabel])
-        );
+        )
+    }
+    fn as_json(&self) -> String {
+        let graph = &self.filter_graph(FilterOptions::all());
+        format!("{}", serde_json::to_string(graph).unwrap())
     }
 }
 

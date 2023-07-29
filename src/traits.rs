@@ -99,8 +99,10 @@ pub trait GraphWorkflow {
     fn update_graph_status(&mut self, node_idx: u32, status: &TestStatus);
     /// Updates a single node status
     fn update_node_status(&mut self, node_idx: NodeIndex, status: TestStatus);
-    /// Prints Dot graphviz representation of the graph
-    fn print_dot(&self);
+    /// Get Dot graphviz representation of the graph
+    fn as_dot(&self) -> String;
+    /// Get Json graphviz representation of the graph
+    fn as_json(&self) -> String;
 }
 
 #[async_trait::async_trait]

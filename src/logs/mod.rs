@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use colored::Colorize;
-use tokio::sync::MutexGuard;
+use tokio::sync::{MutexGuard, RwLockReadGuard};
 use tracing::{event, Level};
 
 use crate::{
@@ -50,7 +50,7 @@ pub fn log_change_status(node: &TestNode, status: &TestStatus, _new_line: bool) 
 }
 
 /// Log the final workflow report on the terminal.
-pub fn log_report(workflow: MutexGuard<Workflow>, duration: Duration) {
+pub fn log_report(workflow: RwLockReadGuard<Workflow>, duration: Duration) {
     let completed = workflow
         .filter_graph(FilterOptions::completed())
         .node_count();

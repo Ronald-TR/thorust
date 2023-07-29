@@ -27,10 +27,10 @@ pub enum ParserType {
 /// 
 /// ```
 /// use anyhow::Result;
-/// use thorust::parser::{parse, ParserType};
+/// use thorust::parser::parse;
 /// 
 /// fn main() -> Result<()> {
-///   let content = parse("example.yaml", ParserType::Yaml)?;
+///   let content = parse("example.yaml")?;
 ///   println!("Content: {:?}", content);
 ///  Ok(())
 /// }
