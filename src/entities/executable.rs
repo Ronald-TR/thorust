@@ -8,6 +8,7 @@ pub struct TestExecutable {
     pub service: String,
     pub name: String,
     pub command: String,
+    pub description: String,
     pub output: Option<String>,
 }
 

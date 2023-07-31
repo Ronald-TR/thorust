@@ -17,22 +17,28 @@ export interface INodeStyle {
 }
 
 export const NodeStyle = {
+  Running: {
+    node: blue[50],
+    edge: blue[500],
+    border: blue[500],
+    animated: true,
+  },
   Completed: {
     node: green[50],
     edge: green[500],
     border: green[500],
     animated: false,
   },
-  NotStarted: {
-    node: yellow[50],
-    edge: yellow[500],
-    border: yellow[700],
-    animated: true,
-  },
   Failed: {
     node: red[50],
     edge: red[500],
     border: red[500],
+    animated: true,
+  },
+  NotStarted: {
+    node: yellow[50],
+    edge: yellow[500],
+    border: yellow[700],
     animated: true,
   },
   Skipped: {
@@ -59,6 +65,8 @@ export function getNodeStyleFromStatus(status: string): INodeStyle {
       return NodeStyle.Skipped;
     case "NotStarted":
       return NodeStyle.NotStarted;
+    case "Running":
+      return NodeStyle.Running;
     default:
       return NodeStyle.Default;
   }
@@ -68,7 +76,9 @@ export function extractNodeInfo(nodeLabel: string): {
   label: string;
   status: string;
 } {
-  const [label, status] = nodeLabel.split("-");
+  const x = nodeLabel.split("-");
+  const status = x.pop() || "";
+  const label = x.join("-");
   return {
     label,
     status,

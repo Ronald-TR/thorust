@@ -45,7 +45,8 @@ async fn main() -> Result<()> {
         .with_target(false)
         .compact();
     tracing_subscriber::fmt().event_format(format).init();
-
+    // reset db
+    std::fs::remove_file("./db")?;
     let args = ThorustCmd::parse();
 
     match &args.command {

@@ -7,8 +7,7 @@ use crate::{
     workflow::Workflow,
 };
 use anyhow::Result;
-use tokio::sync::{Mutex, RwLock};
-// use tracing::{event, Level};
+use tokio::sync::RwLock;
 
 pub struct Runner {
     pub workflow: Arc<RwLock<Workflow>>,

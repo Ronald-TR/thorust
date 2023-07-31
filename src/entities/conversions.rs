@@ -1,14 +1,13 @@
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::*;
 
-use super::{
-    graph::TestNode,
-    manifest::RootFile, enums::TestStatus, executable::TestExecutable,
-};
+use crate::db::DbNode;
+
+use super::{enums::TestStatus, executable::TestExecutable, graph::TestNode, manifest::RootFile};
 
 fn extract_test_nodes(content: &RootFile) -> Vec<TestNode> {
     let mut nodes: Vec<TestNode> = Vec::new();
-    let mut index = 0;
+    let mut index: u32 = 0;
     for service in content.services.iter() {
         for test in service.tests.iter() {
             nodes.push(TestNode {
@@ -20,9 +19,10 @@ fn extract_test_nodes(content: &RootFile) -> Vec<TestNode> {
                     name: test.name.clone(),
                     service: service.name.clone(),
                     command: test.command.clone(),
+                    description: test.description.clone(),
                     id: test.id.clone(),
                     output: None,
-                }
+                },
             });
             index += 1;
         }
@@ -45,7 +45,17 @@ pub fn build_graph(content: &RootFile) -> DiGraph<TestNode, usize> {
                 0,
             );
         });
-        
     }
     graph
+}
+
+impl From<TestNode> for DbNode {
+    fn from(value: TestNode) -> Self {
+        Self {
+            id: value.index as i32,
+            name: value.executable.name,
+            description: value.executable.description,
+            service: value.executable.service,
+        }
+    }
 }

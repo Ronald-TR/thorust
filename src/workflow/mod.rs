@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use petgraph::{
     dot::{Config, Dot},
@@ -6,25 +8,32 @@ use petgraph::{
     visit::Dfs,
 };
 
-use crate::{entities::graph::FilterOptions, parser::orphan_nodes};
+use crate::{
+    db::SqliteStorage, entities::graph::FilterOptions, parser::orphan_nodes, traits::Storage,
+};
 
 use super::{
     entities::{conversions::build_graph, enums::TestStatus, graph::TestNode, manifest::RootFile},
     traits::GraphWorkflow,
 };
 
-#[derive(Debug)]
 pub struct Workflow {
     pub graph: DiGraph<TestNode, usize>,
+    pub conn: Arc<dyn Storage>,
 }
 
 impl Workflow {
     pub fn new(manifest: &RootFile) -> Result<Self> {
         let graph = build_graph(manifest);
-        Ok(Self { graph })
+        let conn = Arc::new(SqliteStorage::new());
+        let _self = Self { graph, conn };
+        _self.conn.insert_nodes_from(_self.is_cyclic()?);
+        _self.conn.insert_dot(&_self.as_dot());
+        Ok(_self)
     }
     pub fn from_graph(graph: DiGraph<TestNode, usize>) -> Self {
-        Self { graph }
+        let conn = Arc::new(SqliteStorage::new());
+        Self { graph, conn }
     }
 }
 
@@ -62,6 +71,10 @@ impl GraphWorkflow for Workflow {
 
     fn update_node_status(&mut self, node_idx: NodeIndex, status: TestStatus) {
         self.graph[node_idx].status.push(status);
+        // update storage with the new graph state
+        self.conn
+            .insert_node_history(&status.to_string(), node_idx.index() as i64);
+        self.conn.insert_dot(&self.as_dot());
     }
 
     fn update_graph_status(&mut self, node_idx: u32, status: &TestStatus) {

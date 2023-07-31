@@ -36,7 +36,26 @@ const nodeWidth = 172;
 const nodeHeight = 36;
 // LR - left to right - horizontal
 // TB - top to bottom - vertical
-const getLayoutedElements = (nodes: any, edges: any, direction = "LR") => {
+const getLayoutedElements = (
+  nodes: any,
+  edges: any,
+  direction = "LR",
+  status = "all"
+) => {
+  if (status !== "all") {
+    nodes.forEach((node: any) => {
+      node.hidden = !node.hidden;
+      if (node.status === status) {
+        node.hidden = false;
+      }
+    });
+    edges.forEach((edge: any) => {
+      edge.hidden = !edge.hidden;
+      if (edge.source.status === status || edge.target.status === status) {
+        edge.hidden = false;
+      }
+    });
+  }
   const isHorizontal = direction === "LR";
   dagreGraph.setGraph({ rankdir: direction });
 
@@ -92,6 +111,16 @@ const LayoutFlow = ({ dot }: { dot: string }) => {
     },
     [nodes, edges]
   );
+  const filterNodesByStatus = (nodes: any, edges: any, status: string) => {
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      nodes,
+      edges,
+      "LR",
+      status
+    );
+    setNodes([...layoutedNodes]);
+    setEdges([...layoutedEdges]);
+  };
   useEffect(() => {
     // Build the default nodes from the dot file.
     const graph = read(dot);
@@ -100,6 +129,7 @@ const LayoutFlow = ({ dot }: { dot: string }) => {
       const { label, status } = extractNodeInfo(node.label!);
       return {
         id: nodeId,
+        status: status,
         data: { label: label },
         type: "default",
         ...customizeNodeStyle(node),
@@ -123,7 +153,7 @@ const LayoutFlow = ({ dot }: { dot: string }) => {
     );
     setNodes([...layoutedNodes]);
     setEdges([...layoutedEdges]);
-  }, []);
+  }, [dot]);
   return (
     <ReactFlow
       nodes={nodes}
@@ -153,15 +183,27 @@ const LayoutFlow = ({ dot }: { dot: string }) => {
             .filter((key) => key !== "Default")
             .map((key) => (
               <Button
+                key={key}
+                onClick={() => filterNodesByStatus(nodes, edges, key)}
                 style={{ color: NodeStyle[key].border }}
                 startIcon={
                   <Box
                     sx={{
-                      width: 15,
-                      height: 15,
+                      width: 17,
+                      height: 17,
                       backgroundColor: NodeStyle[key].border,
                     }}
-                  />
+                  >
+                    <Typography
+                      sx={{
+                        color: NodeStyle[key].node,
+                        fontSize: 12,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {nodes.filter((node: any) => node.status === key).length}
+                    </Typography>
+                  </Box>
                 }
               >
                 {key}
@@ -170,7 +212,7 @@ const LayoutFlow = ({ dot }: { dot: string }) => {
         </ButtonGroup>
       </Panel>
       <Controls />
-      <Background color="#ccc" />
+      <Background />
     </ReactFlow>
   );
 };

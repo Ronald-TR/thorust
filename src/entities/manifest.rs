@@ -24,6 +24,7 @@ pub struct TestUnit {
     #[serde(default = "Vec::new")]
     pub depends_on: Vec<String>,
     pub command: String,
+    pub description: String,
 }
 
 impl RootFile {

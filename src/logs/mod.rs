@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use colored::Colorize;
-use tokio::sync::{MutexGuard, RwLockReadGuard};
+use tokio::sync::RwLockReadGuard;
 use tracing::{event, Level};
 
 use crate::{
