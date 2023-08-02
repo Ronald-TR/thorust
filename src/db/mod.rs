@@ -14,6 +14,7 @@ pub struct DbNode {
     pub name: String,
     pub description: String,
     pub service: String,
+    pub response: String,
 }
 
 #[derive(Clone, Default)]
@@ -35,12 +36,14 @@ impl SqliteStorage {
     // Create a new and empty instance of the storage
     pub fn new() -> Self {
         let conn = Connection::open("./db").unwrap();
+        // let conn = Connection::open_in_memory().unwrap();
         conn.execute(
             "CREATE TABLE IF NOT EXISTS nodes (
                 id              INTEGER PRIMARY KEY,
                 name            TEXT NOT NULL,
                 description     TEXT NOT NULL,
                 service         TEXT NOT NULL
+                response        TEXT DEFAULT '',
             )",
             (),
         )
@@ -110,13 +113,14 @@ impl Storage for SqliteStorage {
     fn get_nodes(&self) -> Result<Vec<DbNode>> {
         let conn = self.conn();
         let mut stmt =
-            conn.prepare("SELECT id, name, description, service FROM nodes ORDER BY index ASC")?;
+            conn.prepare("SELECT id, name, description, service, response FROM nodes ORDER BY index ASC")?;
         let node_iter = stmt.query_map([], |row| {
             Ok(DbNode {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 description: row.get(2)?,
                 service: row.get(3)?,
+                response: row.get(4)?,
             })
         })?;
         node_iter.collect()

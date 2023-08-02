@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use crate::{
+    db::SqliteStorage,
     entities::{enums::TestStatus, graph::TestNode},
     logs::{log_change_status, log_report},
-    traits::{GraphWorkflow, RunnerWorkflow},
+    traits::{GraphWorkflow, RunnerWorkflow, Storage},
     workflow::Workflow,
 };
 use anyhow::Result;
@@ -14,11 +15,24 @@ pub struct Runner {
 }
 
 impl Runner {
-    pub fn new(workflow: Workflow) -> Self {
-        Self {
+    pub fn new(workflow: Workflow) -> Result<Self> {
+        let storage = SqliteStorage::new();
+        storage.insert_nodes_from(workflow.is_cyclic()?);
+        storage.insert_dot(&workflow.as_dot());
+        Ok(Self {
             workflow: Arc::new(RwLock::new(workflow)),
-        }
+        })
     }
+}
+
+fn update_db_node_history(node: TestNode) {
+    let storage = SqliteStorage::new();
+    let status = node
+        .status
+        .last()
+        .cloned()
+        .unwrap_or_else(|| TestStatus::NotStarted);
+    storage.insert_node_with_status(node.into(), &status);
 }
 
 /// Wrapper that executes a single test node
@@ -27,24 +41,32 @@ async fn execute_node(node: &TestNode, workflow: Arc<RwLock<Workflow>>) -> Resul
     workflow
         .write()
         .await
-        .update_graph_status(node.index, &TestStatus::Running);
+        .update_graph_status(node.index, &TestStatus::Running, move |node| {
+            update_db_node_history(node.clone());
+        });
     log_change_status(&node, &TestStatus::Running, false);
     match node.executable.call().await {
         // Set the test status to Completed
         Ok(output) => {
-            workflow
-                .write()
-                .await
-                .update_graph_status(node.index, &TestStatus::Completed);
+            workflow.write().await.update_graph_status(
+                node.index,
+                &TestStatus::Completed,
+                move |node| {
+                    update_db_node_history(node.clone());
+                },
+            );
             log_change_status(&node, &TestStatus::Completed, true);
             Ok(output)
         }
         // Set the test status to Failed
         Err(err) => {
-            workflow
-                .write()
-                .await
-                .update_graph_status(node.index, &TestStatus::Failed);
+            workflow.write().await.update_graph_status(
+                node.index,
+                &TestStatus::Failed,
+                move |node| {
+                    update_db_node_history(node.clone());
+                },
+            );
             log_change_status(&node, &TestStatus::Failed, true);
             Err(err)
         }
@@ -81,6 +103,14 @@ impl RunnerWorkflow for Runner {
         }
         let finish_duration = std::time::Instant::now();
         log_report(self.workflow.read().await, finish_duration - start_duration);
+        Ok(())
+    }
+    async fn reset(&mut self) -> Result<()> {
+        let _ = std::fs::remove_file("./db");
+        self.workflow.write().await.reset()?;
+        let storage = SqliteStorage::new();
+        storage.insert_nodes_from(self.workflow.read().await.is_cyclic()?);
+        storage.insert_dot(&self.workflow.read().await.as_dot());
         Ok(())
     }
 }

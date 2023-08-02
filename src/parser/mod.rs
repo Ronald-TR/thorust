@@ -15,6 +15,7 @@ pub fn orphan_nodes<'a>(graph: &DiGraph<&'a TestNode, &'a usize>) -> Vec<&'a Tes
 
 /// Enum ParserType
 /// Tt defines which parser to use
+#[derive(Debug, PartialEq)]
 pub enum ParserType {
     Yaml,
     Json,
@@ -79,3 +80,4 @@ impl ParserType {
         }
     }
 }
+

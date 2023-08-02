@@ -56,6 +56,7 @@ impl From<TestNode> for DbNode {
             name: value.executable.name,
             description: value.executable.description,
             service: value.executable.service,
+            response: value.executable.output.unwrap_or_default(),
         }
     }
 }

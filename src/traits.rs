@@ -101,13 +101,25 @@ pub trait GraphWorkflow {
     /// * if `a` fails: `b`, `c` and `d` will be marked as skipped.
     /// * if `b` fails: `c` and `d` will be marked as skipped.
     /// * if `a` completes: `b`, `c` and `d` will not be changed.
-    fn update_graph_status(&mut self, node_idx: u32, status: &TestStatus);
+    fn update_graph_status(
+        &mut self,
+        node_idx: u32,
+        status: &TestStatus,
+        callback: impl Fn(&TestNode) + Send + Copy + 'static,
+    );
     /// Updates a single node status
-    fn update_node_status(&mut self, node_idx: NodeIndex, status: TestStatus);
+    fn update_node_status(
+        &mut self,
+        node_idx: NodeIndex,
+        status: TestStatus,
+        callback: impl Fn(&TestNode) + Send + 'static,
+    );
     /// Get Dot graphviz representation of the graph
     fn as_dot(&self) -> String;
     /// Get Json graphviz representation of the graph
     fn as_json(&self) -> String;
+    /// Reset the graph to its initial state
+    fn reset(&mut self) -> Result<()>;
 }
 
 #[async_trait::async_trait]
@@ -118,6 +130,10 @@ pub trait RunnerWorkflow {
     async fn batch_execute(&mut self, nodes: Vec<TestNode>) -> Result<()>;
     /// Loop over all available tests running them until no more tests are available to be run.
     async fn run_until_complete(&mut self) -> Result<()>;
+    /// Reset the workflow and storage to its initial state.
+    /// 
+    /// An error can occur if the workflow was created from a graph and not from a manifest.
+    async fn reset(&mut self) -> Result<()>;
 }
 
 pub trait Storage: Send + Sync {

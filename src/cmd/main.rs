@@ -46,14 +46,14 @@ async fn main() -> Result<()> {
         .compact();
     tracing_subscriber::fmt().event_format(format).init();
     // reset db
-    std::fs::remove_file("./db")?;
+    let _ = std::fs::remove_file("./db");
     let args = ThorustCmd::parse();
 
     match &args.command {
         Commands::Run { file } => {
             let manifest = parse(&file).unwrap();
-            let workflow = Workflow::new(&manifest).unwrap();
-            let mut runner = Runner::new(workflow);
+            let workflow = Workflow::new(manifest);
+            let mut runner = Runner::new(workflow)?;
             runner.run_until_complete().await?;
             println!("{}", runner.workflow.read().await.as_json());
         }
@@ -62,7 +62,7 @@ async fn main() -> Result<()> {
         }
         Commands::Dot { file } => {
             let manifest = parse(&file).unwrap();
-            let workflow = Workflow::new(&manifest).unwrap();
+            let workflow = Workflow::new(manifest);
             println!("{}", workflow.as_dot());
         }
     }

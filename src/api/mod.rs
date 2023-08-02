@@ -21,19 +21,18 @@ use crate::{
 type SharedState = Arc<RunnerSharedState>;
 
 pub struct RunnerSharedState {
+    #[allow(dead_code)]
     fp: Mutex<String>,
     runner: Arc<RwLock<Runner>>,
 }
 
 pub async fn run_server(fp: &str) -> Result<()> {
     let manifest = parse(fp)?;
-    let runner = Arc::new(RwLock::new(Runner::new(Workflow::new(&manifest)?)));
+    let runner = Arc::new(RwLock::new(Runner::new(Workflow::new(manifest))?));
     let shared_state = Arc::new(RunnerSharedState {
         fp: Mutex::new(fp.to_string()),
         runner,
     });
-
-    // build our application with a route
     let app = Router::new()
         .route("/dot", get(dot))
         .route("/batch_execute", get(batch_execute))
@@ -65,14 +64,17 @@ async fn dot() -> Result<String, StatusCode> {
     Ok(last_dot)
 }
 
-/// Resets the workflow to its initial state
+/// Resets the Runner to its initial state.
+///
+/// This means that the workflow inside the Runner and the storage will be reseted to its initial state too.
 async fn reset(Extension(state): Extension<SharedState>) -> Result<String, StatusCode> {
-    // reset db
-    let _ = std::fs::remove_file("./db");
-    let manifest = parse(state.fp.lock().await.as_str()).map_err(|_| StatusCode::BAD_REQUEST)?;
-    state.runner.write().await.workflow = Arc::new(RwLock::new(
-        Workflow::new(&manifest).map_err(|_| StatusCode::BAD_REQUEST)?,
-    ));
+    state
+        .runner
+        .write()
+        .await
+        .reset()
+        .await
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
     Ok("".to_string())
 }
 /// Run all tests until the graph exhaustion.
@@ -85,15 +87,7 @@ async fn run_all(Extension(state): Extension<SharedState>) -> Result<String, Sta
         .run_until_complete()
         .await
         .map_err(|_| StatusCode::BAD_REQUEST)?;
-    Ok(state
-        .runner
-        .clone()
-        .read()
-        .await
-        .workflow
-        .read()
-        .await
-        .as_dot())
+    Ok("OK".to_string())
 }
 
 /// Iter over the next available tests and run them.
