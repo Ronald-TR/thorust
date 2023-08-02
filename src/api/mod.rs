@@ -6,9 +6,15 @@ use axum::{
     routing::{get, post},
     Extension, Json, Router,
 };
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, RwLock};
-use tower_http::{add_extension::AddExtensionLayer, cors::CorsLayer, trace::TraceLayer};
+use tower_http::{
+    add_extension::AddExtensionLayer,
+    cors::CorsLayer,
+    trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer},
+};
+use tracing::{event, Level};
 
 use crate::{
     db::SqliteStorage,
@@ -34,17 +40,22 @@ pub async fn run_server(fp: &str) -> Result<()> {
         runner,
     });
     let app = Router::new()
-        .route("/dot", get(dot))
         .route("/batch_execute", get(batch_execute))
         .route("/run_all", get(run_all))
         .route("/reset", get(reset))
         .route("/users", post(create_user))
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                .on_response(DefaultOnResponse::new().level(Level::INFO)),
+        )
         .layer(AddExtensionLayer::new(shared_state))
-        .layer(CorsLayer::permissive())
-        .layer(TraceLayer::new_for_http());
+        // From here, we define routes that we dont want to be traced (due to unnecessary spam)
+        .route("/dot", get(dot))
+        .layer(CorsLayer::permissive());
 
     let listener = SocketAddr::from(([0, 0, 0, 0], 4000));
-    tracing::debug!("listening on {}", listener);
+    event!(Level::INFO, "listening on {}", listener.to_string().bold());
     axum::Server::bind(&listener)
         .serve(app.into_make_service())
         .await?;

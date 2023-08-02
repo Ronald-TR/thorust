@@ -7,6 +7,7 @@ use thorust::{
     traits::{GraphWorkflow, RunnerWorkflow},
     workflow::Workflow,
 };
+use tracing::Level;
 
 /// Thorust - command line interface
 #[derive(Parser)]
@@ -41,11 +42,13 @@ enum Commands {
 #[tokio::main]
 async fn main() -> Result<()> {
     let format = tracing_subscriber::fmt::format()
-        .with_level(false)
         .with_target(false)
         .compact();
-    tracing_subscriber::fmt().event_format(format).init();
-    // reset db
+    tracing_subscriber::fmt()
+        .event_format(format)
+        .with_max_level(Level::INFO)
+        .init();
+    // resets db to ensure a clean state on every CLI execution
     let _ = std::fs::remove_file("./db");
     let args = ThorustCmd::parse();
 
