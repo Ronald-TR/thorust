@@ -15,6 +15,7 @@ import LayoutFlow from "@/components/graph";
 export default function HomePage() {
   const [severity, setSeverity] = React.useState<AlertColor>("info");
   const [dot, setDot] = React.useState<string>("");
+  const [isRunning, setIsRunning] = React.useState<boolean>(false);
   const fetchDot = async () => {
     fetch("http://localhost:4000/dot")
       .then((resp) => resp.text())
@@ -25,6 +26,7 @@ export default function HomePage() {
   React.useEffect(() => {
     const id = setInterval(async () => {
       fetchDot();
+      setIsRunning(dot.includes("Running"));
       if (dot.includes("Failed")) setSeverity("error");
     }, 500);
     fetchDot();
@@ -32,10 +34,10 @@ export default function HomePage() {
   }, [dot]);
   const runWorkflow = async () => {
     setSeverity("warning");
-    fetch("http://localhost:4000/run_all");
+    fetch("http://localhost:4000/runner/all");
   };
   const resetWorkflow = async () => {
-    fetch("http://localhost:4000/reset").then(() => {
+    fetch("http://localhost:4000/runner/reset").then(() => {
       fetchDot();
       setSeverity("info");
     });
@@ -45,23 +47,30 @@ export default function HomePage() {
     <Box
       sx={{
         display: "flex",
+        width: "100%",
       }}
     >
-      <Box sx={{}}>
+      <Box sx={{ width: "100%" }}>
         <ButtonGroup>
           <Button
+            disabled={isRunning}
             color={severity}
             variant="outlined"
             onClick={() => runWorkflow()}
           >
             Run workflow
           </Button>
-          <Button color="info" variant="outlined" onClick={() => resetWorkflow()}>
+          <Button
+            disabled={isRunning}
+            color="info"
+            variant="outlined"
+            onClick={() => resetWorkflow()}
+          >
             Reset
           </Button>
         </ButtonGroup>
-        <Container maxWidth="sm">
-          <Box sx={{ height: "80vh", width: "100vh" }}>
+        <Container maxWidth="lg" sx={{}}>
+          <Box sx={{ height: "80vh" }}>
             {dot.length > 0 && <LayoutFlow dot={dot} />}
           </Box>
         </Container>

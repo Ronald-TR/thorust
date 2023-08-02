@@ -10,7 +10,6 @@ import ReactFlow, {
   Controls,
   Background,
 } from "reactflow";
-import dagre from "dagre";
 
 import "reactflow/dist/style.css";
 import { read } from "graphlib-dot";
@@ -19,6 +18,7 @@ import {
   customizeEdgeByParent,
   customizeNodeStyle,
   extractNodeInfo,
+  getLayoutedElements,
 } from "./helpers";
 import {
   Avatar,
@@ -28,64 +28,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
-
-const nodeWidth = 172;
-const nodeHeight = 36;
-// LR - left to right - horizontal
-// TB - top to bottom - vertical
-const getLayoutedElements = (
-  nodes: any,
-  edges: any,
-  direction = "LR",
-  status = "all"
-) => {
-  if (status !== "all") {
-    nodes.forEach((node: any) => {
-      node.hidden = !node.hidden;
-      if (node.status === status) {
-        node.hidden = false;
-      }
-    });
-    edges.forEach((edge: any) => {
-      edge.hidden = !edge.hidden;
-      if (edge.source.status === status || edge.target.status === status) {
-        edge.hidden = false;
-      }
-    });
-  }
-  const isHorizontal = direction === "LR";
-  dagreGraph.setGraph({ rankdir: direction });
-
-  nodes.forEach((node: any) => {
-    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
-  });
-
-  edges.forEach((edge: any) => {
-    dagreGraph.setEdge(edge.source, edge.target);
-  });
-
-  dagre.layout(dagreGraph);
-
-  nodes.forEach((node: any) => {
-    const nodeWithPosition = dagreGraph.node(node.id);
-    node.targetPosition = isHorizontal ? "left" : "top";
-    node.sourcePosition = isHorizontal ? "right" : "bottom";
-
-    // We are shifting the dagre node position (anchor=center center) to the top left
-    // so it matches the React Flow node anchor point (top left).
-    node.position = {
-      x: nodeWithPosition.x - nodeWidth / 2,
-      y: nodeWithPosition.y - nodeHeight / 2,
-    };
-
-    return node;
-  });
-
-  return { nodes, edges };
-};
+import BtnStatusGroup from "./ThemeRegistry/BtnStatusGroup";
 
 const LayoutFlow = ({ dot }: { dot: string }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -105,22 +48,12 @@ const LayoutFlow = ({ dot }: { dot: string }) => {
     (direction: any) => {
       const { nodes: layoutedNodes, edges: layoutedEdges } =
         getLayoutedElements(nodes, edges, direction);
-
       setNodes([...layoutedNodes]);
       setEdges([...layoutedEdges]);
     },
     [nodes, edges]
   );
-  const filterNodesByStatus = (nodes: any, edges: any, status: string) => {
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-      nodes,
-      edges,
-      "LR",
-      status
-    );
-    setNodes([...layoutedNodes]);
-    setEdges([...layoutedEdges]);
-  };
+
   useEffect(() => {
     // Build the default nodes from the dot file.
     const graph = read(dot);
@@ -163,6 +96,7 @@ const LayoutFlow = ({ dot }: { dot: string }) => {
       onConnect={onConnect}
       connectionLineType={ConnectionLineType.SmoothStep}
       fitView
+      onNodeClick={(event, node) => console.log(event, node)}
     >
       <Panel position="bottom-right">
         <Typography variant="overline" display="block">
@@ -178,38 +112,12 @@ const LayoutFlow = ({ dot }: { dot: string }) => {
         </ButtonGroup>
       </Panel>
       <Panel position="top-left">
-        <ButtonGroup size="small" aria-label="small button group">
-          {Object.keys(NodeStyle)
-            .filter((key) => key !== "Default")
-            .map((key) => (
-              <Button
-                key={key}
-                onClick={() => filterNodesByStatus(nodes, edges, key)}
-                style={{ color: NodeStyle[key].border }}
-                startIcon={
-                  <Box
-                    sx={{
-                      width: 17,
-                      height: 17,
-                      backgroundColor: NodeStyle[key].border,
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        color: NodeStyle[key].node,
-                        fontSize: 12,
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {nodes.filter((node: any) => node.status === key).length}
-                    </Typography>
-                  </Box>
-                }
-              >
-                {key}
-              </Button>
-            ))}
-        </ButtonGroup>
+        <BtnStatusGroup
+          nodes={nodes}
+          edges={edges}
+          setNodes={setNodes}
+          setEdges={setEdges}
+        />
       </Panel>
       <Controls />
       <Background />

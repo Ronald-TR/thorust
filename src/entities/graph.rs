@@ -1,13 +1,44 @@
-use std::fmt::{Debug, Display};
-
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Debug, Display};
+use tokio::process::Command;
 
-use super::{enums::TestStatus, executable::TestExecutable};
+use super::enums::TestStatus;
 
 pub struct FilterOptions {
     pub id: Option<String>,
     pub status: Option<TestStatus>,
     pub index: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct TestExecutable {
+    pub id: String,
+    pub service: String,
+    pub name: String,
+    pub command: String,
+    pub description: String,
+    pub output: Option<String>,
+}
+
+impl TestExecutable {
+    pub async fn call(&mut self) -> Result<String> {
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(&self.command)
+            .output()
+            .await?;
+        if !output.status.success() {
+            return Err(anyhow::anyhow!(
+                "The test '{}' failed with exit code: {}",
+                self.name,
+                output.status
+            ));
+        }
+        let output = String::from_utf8(output.stdout);
+        self.output = output.clone().map(Option::Some).unwrap_or(None);
+        Ok(output?)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -24,23 +55,24 @@ pub struct TestNode {
 /// We implement Display for TestNode so we can pretty print in graphviz representation
 impl Display for TestNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "{}-{}",
-            &self.id,
-            &self
-                .status
-                .last()
-                .unwrap_or(&TestStatus::NotStarted)
-                .to_string()
-        ))
+        f.write_fmt(format_args!("{}-{}", &self.id, &self.last_status()))
+    }
+}
+
+impl TestNode {
+    pub fn last_status(&self) -> TestStatus {
+        self.status
+            .last()
+            .cloned()
+            .unwrap_or(TestStatus::NotStarted)
     }
 }
 
 impl FilterOptions {
     /// Check if the node matches the filter options.
-    /// 
+    ///
     /// If an empty filter is provided (all FilterOptions as None), it will match all nodes.
-    /// 
+    ///
     /// In other hands, an empty filter is completelly permissive.
     pub fn check(&self, node: &TestNode) -> bool {
         if let Some(index) = self.index {
@@ -54,7 +86,7 @@ impl FilterOptions {
             }
         };
         if let Some(status) = &self.status {
-            if node.status.last().unwrap_or(&TestStatus::NotStarted) != status {
+            if &node.last_status() != status {
                 return false;
             };
         };

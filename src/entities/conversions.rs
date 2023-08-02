@@ -1,9 +1,7 @@
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::*;
 
-use crate::db::DbNode;
-
-use super::{enums::TestStatus, executable::TestExecutable, graph::TestNode, manifest::RootFile};
+use super::{enums::TestStatus, graph::{TestNode, TestExecutable}, manifest::RootFile, storage::DbNode};
 
 fn extract_test_nodes(content: &RootFile) -> Vec<TestNode> {
     let mut nodes: Vec<TestNode> = Vec::new();
@@ -54,9 +52,9 @@ impl From<TestNode> for DbNode {
         Self {
             id: value.index as i32,
             name: value.executable.name,
+            test_id: value.id,
             description: value.executable.description,
             service: value.executable.service,
-            response: value.executable.output.unwrap_or_default(),
         }
     }
 }

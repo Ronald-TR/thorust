@@ -54,11 +54,7 @@ impl GraphWorkflow for Workflow {
     }
 
     fn orphan_nodes(&self) -> Vec<&TestNode> {
-        // We use filter_map to get the graph nodes as reference
-        let graph = self
-            .graph
-            .filter_map(|_, node| Some(node), |_, edge| Some(edge));
-        orphan_nodes(&graph)
+        orphan_nodes(&self.filter_graph(FilterOptions::all()))
     }
 
     fn availables(&self) -> Result<Vec<TestNode>> {
@@ -67,29 +63,54 @@ impl GraphWorkflow for Workflow {
         Ok(orphans.into_iter().map(|n| n.clone()).collect())
     }
 
+    fn update_node(
+        &mut self,
+        node: TestNode,
+        callback: impl Fn(&TestNode, &str) + Send + 'static,
+    ) -> bool {
+        let node_idx = NodeIndex::new(node.index as usize);
+        let is_changed = match self.graph.node_weight_mut(node_idx) {
+            Some(n) => {
+                *n = node.clone();
+                true
+            }
+            None => false,
+        };
+        if is_changed {
+            callback(&node, &self.as_dot());
+        }
+        is_changed
+    }
+
     fn update_node_status(
         &mut self,
         node_idx: NodeIndex,
         status: TestStatus,
-        callback: impl Fn(&TestNode) + Send + 'static,
+        callback: impl Fn(&TestNode, &str) + Send + 'static,
     ) {
         self.graph[node_idx].status.push(status);
-        callback(&self.graph[node_idx]);
+        callback(&self.graph[node_idx], &self.as_dot());
     }
 
-    fn update_graph_status(
+    fn update_graph_state(
         &mut self,
-        node_idx: u32,
-        status: &TestStatus,
-        callback: impl Fn(&TestNode) + Send + Copy + 'static,
+        node: TestNode,
+        callback: impl Fn(&TestNode, &str) + Send + Copy + 'static,
     ) {
-        let node_idx = NodeIndex::new(node_idx as usize);
+        // Update node, if the node doesn't exists, do nothing.
+        if !self.update_node(node.clone(), callback) {
+            return;
+        }
+        let node_idx = NodeIndex::new(node.index as usize);
+        let status = node.last_status();
         // update the nodes status that depends on this node
         match status {
             TestStatus::Failed | TestStatus::Skipped => {
                 let mut dfs = Dfs::new(&self.graph, node_idx);
                 while let Some(i) = dfs.next(&self.graph) {
-                    // skip the node itself
+                    // skip the node itself, this is necessary due to the recursive nature of the algorithm
+                    // that can update the node itself many times if it has many dependencies
+                    // setting a wrong status and messing up the history.
                     if i != node_idx {
                         self.update_node_status(i, TestStatus::Skipped, callback)
                     }
@@ -98,8 +119,6 @@ impl GraphWorkflow for Workflow {
             }
             _ => (),
         };
-        // update the node itself
-        self.update_node_status(node_idx, status.clone(), callback);
     }
     fn filter_graph(&self, filter: FilterOptions) -> DiGraph<&TestNode, &usize> {
         let graph = self.graph.filter_map(

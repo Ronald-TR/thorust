@@ -1,9 +1,10 @@
 use anyhow::Result;
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 
-use crate::{
-    db::{DbGraph, DbNode, NodeHistory},
-    entities::{enums::TestStatus, graph::FilterOptions},
+use crate::entities::{
+    enums::TestStatus,
+    graph::FilterOptions,
+    storage::{DbGraph, DbNode, NodeHistory, ProcessedHistory},
 };
 
 use super::entities::graph::TestNode;
@@ -50,7 +51,7 @@ pub trait GraphWorkflow {
     /// use thorust::traits::GraphWorkflow;
     /// use thorust::entities::graph::{FilterOptions, TestNode};
     /// use thorust::entities::enums::TestStatus;
-    /// use thorust::entities::executable::TestExecutable;
+    /// use thorust::entities::graph::TestExecutable;
     /// use thorust::workflow::Workflow;
     ///
     /// fn main() -> Result<()> {
@@ -90,9 +91,17 @@ pub trait GraphWorkflow {
     ///     Ok(())
     /// }
     fn filter_graph(&self, filter: FilterOptions) -> DiGraph<&TestNode, &usize>;
-    /// This method should update the status of the test to Completed or Failed.
+    /// This method should update the node in the graph and refresh the graph state by the last status of the node.
+    ///
+    /// Internally it uses the `update_node` method to update the node with the new state.
     ///
     /// If the test fails or are skipped, it should mark the tests that depends on him as Skipped.
+    ///
+    /// The callback function is called after each graph change.
+    ///
+    /// The callback parameters are:
+    ///    * node: The updated node
+    ///    * dot: The dot representation of the graph after the change
     ///
     /// **Important:**
     /// The attribution is recursive and uses a depth-first-search to update all nodes that share their path.
@@ -100,20 +109,31 @@ pub trait GraphWorkflow {
     /// I.e.: `a->b->c->d`.
     /// * if `a` fails: `b`, `c` and `d` will be marked as skipped.
     /// * if `b` fails: `c` and `d` will be marked as skipped.
-    /// * if `a` completes: `b`, `c` and `d` will not be changed.
-    fn update_graph_status(
+    /// * if `a` completes: `b`, `c` and `d` will not be changed, staying available to run in the next iteration.
+    fn update_graph_state(
         &mut self,
-        node_idx: u32,
-        status: &TestStatus,
-        callback: impl Fn(&TestNode) + Send + Copy + 'static,
+        node: TestNode,
+        callback: impl Fn(&TestNode, &str) + Send + Copy + 'static,
     );
     /// Updates a single node status
+    ///
+    /// The callback function is called after the node update.
     fn update_node_status(
         &mut self,
         node_idx: NodeIndex,
         status: TestStatus,
-        callback: impl Fn(&TestNode) + Send + 'static,
+        callback: impl Fn(&TestNode, &str) + Send + 'static,
     );
+    /// Override a node graph.
+    /// The node index is used to find the node in the graph.
+    /// If the node doesn't exists, the method does nothing.
+    ///
+    /// Returns true or false if the node was updated.
+    fn update_node(
+        &mut self,
+        node: TestNode,
+        callback: impl Fn(&TestNode, &str) + Send + 'static,
+    ) -> bool;
     /// Get Dot graphviz representation of the graph
     fn as_dot(&self) -> String;
     /// Get Json graphviz representation of the graph
@@ -131,18 +151,21 @@ pub trait RunnerWorkflow {
     /// Loop over all available tests running them until no more tests are available to be run.
     async fn run_until_complete(&mut self) -> Result<()>;
     /// Reset the workflow and storage to its initial state.
-    /// 
+    ///
     /// An error can occur if the workflow was created from a graph and not from a manifest.
     async fn reset(&mut self) -> Result<()>;
 }
 
 pub trait Storage: Send + Sync {
-    fn insert_node_with_status(&self, node: DbNode, status: &TestStatus);
+    fn insert_test_node(&self, node: &TestNode);
     fn insert_node(&self, node: DbNode) -> i64;
-    fn insert_node_history(&self, status: &str, node_id: i64) -> i64;
+    fn insert_node_history(&self, status: &str, node_id: i64, data: &str) -> i64;
     fn insert_dot(&self, dot: &str) -> i64;
-    fn get_nodes(&self) -> rusqlite::Result<Vec<DbNode>>;
+    fn get_nodes(&self, ids: &[i32]) -> rusqlite::Result<Vec<DbNode>>;
     fn get_node_history(&self, node_id: i32) -> rusqlite::Result<Vec<NodeHistory>>;
     fn get_dots(&self) -> rusqlite::Result<Vec<DbGraph>>;
-    fn insert_nodes_from(&self, nodes: Vec<&TestNode>);
+    fn insert_test_nodes(&self, nodes: Vec<&TestNode>);
+    fn get_processed_node_history(&self, node_id: i32) -> rusqlite::Result<Vec<ProcessedHistory>>;
+    fn get_all_processed_node_history(&self) -> rusqlite::Result<Vec<ProcessedHistory>>;
+    fn get_all_nodes(&self) -> rusqlite::Result<Vec<DbNode>>;
 }

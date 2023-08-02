@@ -1,6 +1,7 @@
 "use client";
 import "reactflow/dist/style.css";
 import { blue, green, grey, red, yellow } from "@mui/material/colors";
+import dagre from "dagre";
 
 const enum NodeStatus {
   Completed = "Completed",
@@ -18,37 +19,37 @@ export interface INodeStyle {
 
 export const NodeStyle = {
   Running: {
-    node: blue[50],
+    node: blue[100],
     edge: blue[500],
     border: blue[500],
     animated: true,
   },
   Completed: {
-    node: green[50],
+    node: green[100],
     edge: green[500],
     border: green[500],
     animated: false,
   },
   Failed: {
-    node: red[50],
+    node: red[100],
     edge: red[500],
     border: red[500],
     animated: true,
   },
   NotStarted: {
-    node: yellow[50],
+    node: yellow[100],
     edge: yellow[500],
     border: yellow[700],
     animated: true,
   },
   Skipped: {
-    node: grey[50],
+    node: grey[100],
     edge: grey[500],
     border: grey[500],
     animated: true,
   },
   Default: {
-    node: blue[50],
+    node: blue[100],
     edge: blue[500],
     border: blue[500],
     animated: true,
@@ -124,3 +125,58 @@ export function customizeNodeStyle(node: any): {
     style,
   };
 }
+
+const dagreGraph = new dagre.graphlib.Graph();
+dagreGraph.setDefaultEdgeLabel(() => ({}));
+const nodeWidth = 172;
+const nodeHeight = 36;
+// LR - left to right - horizontal
+// TB - top to bottom - vertical
+export const getLayoutedElements = (
+  nodes: any,
+  edges: any,
+  direction = "LR",
+  status: string[] = []
+) => {
+  // Check if the node status is in the filter status
+  // If the filter status is empty, show all nodes and edges.
+  nodes.forEach((node: any) => {
+    node.hidden = !(status.includes(node.status) || status.length === 0);
+  });
+  edges.forEach((edge: any) => {
+    edge.hidden = !(
+      status.includes(edge.source.status) ||
+      status.includes(edge.target.status) ||
+      status.length === 0
+    );
+  });
+  const isHorizontal = direction === "LR";
+  dagreGraph.setGraph({ rankdir: direction });
+
+  nodes.forEach((node: any) => {
+    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+  });
+
+  edges.forEach((edge: any) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+
+  nodes.forEach((node: any) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    node.targetPosition = isHorizontal ? "left" : "top";
+    node.sourcePosition = isHorizontal ? "right" : "bottom";
+
+    // We are shifting the dagre node position (anchor=center center) to the top left
+    // so it matches the React Flow node anchor point (top left).
+    node.position = {
+      x: nodeWithPosition.x - nodeWidth / 2,
+      y: nodeWithPosition.y - nodeHeight / 2,
+    };
+
+    return node;
+  });
+
+  return { nodes, edges };
+};

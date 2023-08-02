@@ -6,3 +6,4 @@ pub mod traits;
 pub mod logs;
 pub mod api;
 pub mod db;
+pub mod services;

@@ -2,12 +2,13 @@ use std::{net::SocketAddr, sync::Arc};
 
 use anyhow::Result;
 use axum::{
+    extract::Path,
     http::StatusCode,
-    routing::{get, post},
+    response::{IntoResponse, Response},
+    routing::get,
     Extension, Json, Router,
 };
 use colored::Colorize;
-use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, RwLock};
 use tower_http::{
     add_extension::AddExtensionLayer,
@@ -18,8 +19,10 @@ use tracing::{event, Level};
 
 use crate::{
     db::SqliteStorage,
+    entities::graph::FilterOptions,
     parser::parse,
     runner::Runner,
+    services::node_info::{get_node_info, get_nodes_info},
     traits::{GraphWorkflow, RunnerWorkflow, Storage},
     workflow::Workflow,
 };
@@ -40,10 +43,13 @@ pub async fn run_server(fp: &str) -> Result<()> {
         runner,
     });
     let app = Router::new()
-        .route("/batch_execute", get(batch_execute))
-        .route("/run_all", get(run_all))
-        .route("/reset", get(reset))
-        .route("/users", post(create_user))
+        .route("/runner/batch", get(batch_execute))
+        .route("/runner/all", get(run_all))
+        .route("/runner/running", get(running))
+        .route("/runner/available", get(available))
+        .route("/runner/reset", get(reset))
+        .route("/nodes", get(get_nodes))
+        .route("/nodes/:node_id", get(get_node))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
@@ -101,6 +107,33 @@ async fn run_all(Extension(state): Extension<SharedState>) -> Result<String, Sta
     Ok("OK".to_string())
 }
 
+/// Check if the workflow is exhausted or not.
+async fn available(Extension(state): Extension<SharedState>) -> Result<String, StatusCode> {
+    let availables = state
+        .runner
+        .clone()
+        .read()
+        .await
+        .workflow
+        .read()
+        .await
+        .availables()
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    match availables.is_empty() {
+        true => Ok("false".to_string()),
+        false => Ok("true".to_string()),
+    }
+}
+
+/// Check if some test node is marked as running
+async fn running(Extension(state): Extension<SharedState>) -> Result<String, StatusCode> {
+    let runner = state.runner.read().await;
+    let workflow = runner.workflow.read().await;
+    let running = workflow.filter_graph(FilterOptions::running());
+    Ok((running.node_count() > 0).to_string())
+}
+
 /// Iter over the next available tests and run them.
 async fn batch_execute(Extension(state): Extension<SharedState>) -> Result<String, StatusCode> {
     let x = state.runner.clone();
@@ -123,31 +156,16 @@ async fn batch_execute(Extension(state): Extension<SharedState>) -> Result<Strin
     return Ok(x.read().await.workflow.read().await.as_dot());
 }
 
-async fn create_user(
-    // this argument tells axum to parse the request body
-    // as JSON into a `CreateUser` type
-    Json(payload): Json<CreateUser>,
-) -> (StatusCode, Json<User>) {
-    // insert your application logic here
-    let user = User {
-        id: 1337,
-        username: payload.username,
-    };
-
-    // this will be converted into a JSON response
-    // with a status code of `201 Created`
-    (StatusCode::CREATED, Json(user))
+async fn get_node(Path(node_id): Path<u32>) -> Response {
+    match get_node_info(node_id as i32) {
+        Ok(node) => Json(node).into_response(),
+        Err(_) => StatusCode::BAD_REQUEST.into_response(),
+    }
 }
 
-// the input to our `create_user` handler
-#[derive(Deserialize)]
-struct CreateUser {
-    username: String,
-}
-
-// the output to our `create_user` handler
-#[derive(Serialize)]
-struct User {
-    id: u64,
-    username: String,
+async fn get_nodes() -> Response {
+    match get_nodes_info() {
+        Ok(node) => Json(node).into_response(),
+        Err(_) => StatusCode::BAD_REQUEST.into_response(),
+    }
 }

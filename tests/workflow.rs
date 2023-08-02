@@ -7,8 +7,7 @@ use petgraph::{
 use thorust::{
     entities::{
         enums::TestStatus,
-        executable::TestExecutable,
-        graph::{FilterOptions, TestNode},
+        graph::{FilterOptions, TestNode, TestExecutable},
     },
     parser::parse,
     traits::GraphWorkflow,
@@ -21,7 +20,11 @@ fn test_dot_render_with_update_graph_status_on_cascade() {
     let manifest = parse("example.yaml").unwrap();
     let mut workflow = Workflow::new(manifest);
     let availables = workflow.availables().unwrap();
-    let node = availables.iter().find(|n| n.id == "foo.test1").unwrap();
+    let mut node = availables
+        .iter()
+        .find(|n| n.id == "foo.test1")
+        .unwrap()
+        .clone();
     assert_eq!(availables.len(), 4);
     assert_eq!(
         availables
@@ -30,7 +33,8 @@ fn test_dot_render_with_update_graph_status_on_cascade() {
             .collect::<Vec<String>>(),
         vec!["foo.test1", "foo.test2", "foo.test3", "bar.test2"]
     );
-    workflow.update_graph_status(node.index, &TestStatus::Completed, |_| {});
+    node.status.push(TestStatus::Completed);
+    workflow.update_graph_state(node.clone(), |_, _| {});
     // A completed test will only update itself
     assert_eq!(
         r#"digraph {
@@ -60,8 +64,13 @@ fn test_dot_render_with_update_graph_status_on_cascade() {
         )
     );
     let availables = workflow.availables().unwrap();
-    let node = availables.iter().find(|n| n.id == "foo.test3").unwrap();
-    workflow.update_graph_status(node.index, &TestStatus::Failed, |_| {});
+    let mut node = availables
+        .iter()
+        .find(|n| n.id == "foo.test3")
+        .unwrap()
+        .clone();
+    node.status.push(TestStatus::Failed);
+    workflow.update_graph_state(node.clone(), |_, _| {});
     // Now, as foo.test1 as marked as Completed, it shouldn't be returned as available
     assert_eq!(availables.len(), 3);
     assert_eq!(
@@ -99,7 +108,7 @@ fn test_dot_render_with_update_graph_status_on_cascade() {
             Dot::with_config(&workflow.graph, &[Config::EdgeIndexLabel])
         )
     );
-    let availables = workflow.availables().unwrap();
+    let mut availables = workflow.availables().unwrap();
     assert_eq!(availables.len(), 2);
     // As foo.test3 is failed, all tests that depends on foo.test3 directly or indirectly will be marked as Skipped,
     // In other hands, foo.test4, foo.test5, foo.test6, foo.test7 and bar.test1 should be skipped.
@@ -110,8 +119,9 @@ fn test_dot_render_with_update_graph_status_on_cascade() {
             .collect::<Vec<String>>(),
         vec!["foo.test2", "bar.test2"]
     );
-    availables.iter().for_each(|node| {
-        workflow.update_graph_status(node.index, &TestStatus::Completed, |_| {});
+    availables.iter_mut().for_each(|node| {
+        node.status.push(TestStatus::Completed);
+        workflow.update_graph_state(node.clone(), |_, _| {});
     });
     // Now, no test should be available, since all nodes are marked as completed, failed or skipped.
     let availables = workflow.availables().unwrap();
@@ -124,9 +134,10 @@ fn test_dot_render_with_update_graph_status_on_cascade_should_only_affect_direct
     let mut workflow = Workflow::new(manifest);
 
     let node_idx = NodeIndex::new(4);
-    let node = workflow.graph[node_idx].clone();
+    let mut node = workflow.graph[node_idx].clone();
     assert_eq!(node.id, "foo.test5");
-    workflow.update_graph_status(node.index, &TestStatus::Failed, |_| {});
+    node.status.push(TestStatus::Failed);
+    workflow.update_graph_state(node.clone(), |_, _| {});
     // Marking a node in the middle of the graph as failed should only affect the nodes that depends on it
     // directly or indirectly in the same direction.
     assert_eq!(
