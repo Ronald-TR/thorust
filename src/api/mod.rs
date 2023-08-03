@@ -9,11 +9,15 @@ use axum::{
     Extension, Json, Router,
 };
 use colored::Colorize;
-use tokio::sync::{Mutex, RwLock};
+use tokio::{
+    process::Command,
+    sync::{Mutex, RwLock},
+};
 use tower_http::{
     add_extension::AddExtensionLayer,
     cors::CorsLayer,
-    trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer}, services::ServeDir,
+    services::ServeDir,
+    trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer},
 };
 use tracing::{event, Level};
 
@@ -35,22 +39,21 @@ pub struct RunnerSharedState {
     runner: Arc<RwLock<Runner>>,
 }
 
-pub async fn run_server(fp: &str) -> Result<()> {
+pub async fn run_server(fp: &str, show_ui: bool) -> Result<()> {
     let manifest = parse(fp)?;
     let runner = Arc::new(RwLock::new(Runner::new(Workflow::new(manifest))?));
     let shared_state = Arc::new(RunnerSharedState {
         fp: Mutex::new(fp.to_string()),
         runner,
     });
-    let app = Router::new()
-        .route("/runner/batch", get(batch_execute))
-        .route("/runner/all", get(run_all))
-        .route("/runner/running", get(running))
-        .route("/runner/available", get(available))
-        .route("/runner/reset", get(reset))
-        .route("/nodes", get(get_nodes))
-        .route("/nodes/:node_id", get(get_node))
-        .nest_service("/", ServeDir::new("ui/dist"))
+    let mut app = Router::new()
+        .route("/api/runner/batch", get(batch_execute))
+        .route("/api/runner/all", get(run_all))
+        .route("/api/runner/running", get(running))
+        .route("/api/runner/available", get(available))
+        .route("/api/runner/reset", get(reset))
+        .route("/api/nodes", get(get_nodes))
+        .route("/api/nodes/:node_id", get(get_node))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
@@ -58,8 +61,15 @@ pub async fn run_server(fp: &str) -> Result<()> {
         )
         .layer(AddExtensionLayer::new(shared_state))
         // From here, we define routes that we dont want to be traced (due to unnecessary spam)
-        .route("/dot", get(dot))
+        .route("/api/dot", get(dot))
         .layer(CorsLayer::permissive());
+    if show_ui {
+        app = app.nest_service("/", ServeDir::new("ui/dist"));
+        Command::new("open")
+            .arg("http://localhost:4000")
+            .spawn()
+            .expect("failed to open browser");
+    };
 
     let listener = SocketAddr::from(([0, 0, 0, 0], 4000));
     event!(Level::INFO, "listening on {}", listener.to_string().bold());

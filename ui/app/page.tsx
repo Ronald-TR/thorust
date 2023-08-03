@@ -11,13 +11,14 @@ import {
   Container,
 } from "@mui/material";
 import LayoutFlow from "@/components/graph";
+import { api } from "@/config";
 
 export default function HomePage() {
   const [severity, setSeverity] = React.useState<AlertColor>("info");
   const [dot, setDot] = React.useState<string>("");
   const [isRunning, setIsRunning] = React.useState<boolean>(false);
   const fetchDot = async () => {
-    fetch("http://localhost:4000/dot")
+    fetch(`${api.BASE_URL}/dot`)
       .then((resp) => resp.text())
       .then((data) => {
         setDot(data);
@@ -34,10 +35,10 @@ export default function HomePage() {
   }, [dot]);
   const runWorkflow = async () => {
     setSeverity("warning");
-    fetch("http://localhost:4000/runner/all");
+    fetch(`${api.BASE_URL}/runner/all`);
   };
   const resetWorkflow = async () => {
-    fetch("http://localhost:4000/runner/reset").then(() => {
+    fetch(`${api.BASE_URL}/runner/reset`).then(() => {
       fetchDot();
       setSeverity("info");
     });

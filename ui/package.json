@@ -4,9 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "open http://localhost:3000 && next dev",
-    "build": "next build",
+    "build": "NODE_ENV=production next build",
     "start": "next start",
-    "prod": "npm run build && npm run start",
     "lint": "next lint"
   },
   "dependencies": {

@@ -31,6 +31,11 @@ enum Commands {
         #[clap(short, long)]
         file: String,
     },
+    Ui {
+        /// Manifest file to read
+        #[clap(short, long)]
+        file: String,
+    },
     /// Prints the Dot graphviz representation of the workflow
     Dot {
         /// Manifest file to read
@@ -61,7 +66,10 @@ async fn main() -> Result<()> {
             println!("{}", runner.workflow.read().await.as_json());
         }
         Commands::Api { file } => {
-            run_server(&file).await?;
+            run_server(&file, false).await?;
+        }
+        Commands::Ui { file } => {
+            run_server(&file, true).await?;
         }
         Commands::Dot { file } => {
             let manifest = parse(&file).unwrap();

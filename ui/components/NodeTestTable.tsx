@@ -25,6 +25,7 @@ import {
   Toolbar,
 } from "@mui/material";
 import { ExpandLess, ExpandMore, Schema } from "@mui/icons-material";
+import { api } from "@/config";
 
 interface ITestNode {
   id: number;
@@ -81,6 +82,9 @@ function Row(props: { row: ReturnType<typeof createData> }) {
         <TableCell align="center">{row.name}</TableCell>
         <TableCell align="center">{row.description}</TableCell>
         <TableCell align="center">{getTestDuration(row.history)}</TableCell>
+        <TableCell align="center">
+          {row.history[row.history.length - 1]?.to_status || "-"}
+        </TableCell>
       </TableRow>
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
@@ -128,11 +132,13 @@ function Row(props: { row: ReturnType<typeof createData> }) {
 }
 
 function getTestDuration(history: any) {
+  if (history.length === 0) return "-";
   const last = history[history.length - 1];
-  if (["Completed", "Failed"].includes(last.to_status)) {
-    return `${(last.duration_millis / 1000).toFixed(2)}s - ${last.to_status}`;
-  };
-  return 'No record - ${last.to_status}';
+  if (["Completed", "Failed"].includes(last?.to_status)) {
+    return `${(last.duration_millis).toFixed(0)}ms`;
+  }
+  console.log(history)
+  return 'No running record';
 }
 export default function NodeTestTable() {
   const [open, setOpen] = React.useState<{ [key: string]: boolean }>({});
@@ -153,7 +159,7 @@ export default function NodeTestTable() {
     {}
   );
   React.useEffect(() => {
-    fetch("http://localhost:4000/nodes")
+    fetch(`${api.BASE_URL}/nodes`)
       .then((resp) => resp.json())
       .then((data) => {
         setRows(data.map((node: ITestNode) => createData(node)));
@@ -193,6 +199,7 @@ export default function NodeTestTable() {
                     <TableCell align="center">Name</TableCell>
                     <TableCell align="center">Description</TableCell>
                     <TableCell align="center">Duration</TableCell>
+                    <TableCell align="center">Last status</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
