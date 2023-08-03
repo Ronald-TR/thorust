@@ -2,7 +2,7 @@ use anyhow::Result;
 use petgraph::prelude::DiGraph;
 use std::fs::File;
 
-use crate::entities::{graph::TestNode, manifest::RootFile};
+use crate::entities::{graph::TestNode, manifests::scripts::MScriptFile};
 
 pub fn orphan_nodes<'a>(graph: &DiGraph<&'a TestNode, &'a usize>) -> Vec<&'a TestNode> {
     let mut orphans = Vec::new();
@@ -21,9 +21,9 @@ pub enum ParserType {
     Json,
 }
 
-pub fn parse_file(fp: &str, normalize: bool) -> Result<RootFile> {
+pub fn parse_file(fp: &str, normalize: bool) -> Result<MScriptFile> {
     let parser_type = ParserType::from_filepath(fp);
-    let mut root: RootFile = match parser_type {
+    let mut root: MScriptFile = match parser_type {
         ParserType::Yaml => serde_yaml::from_reader(File::open(&fp)?)?,
         ParserType::Json => serde_json::from_reader(File::open(&fp)?)?,
     };
@@ -35,7 +35,7 @@ pub fn parse_file(fp: &str, normalize: bool) -> Result<RootFile> {
 }
 
 /// Like parse(), but for a entiry directory
-pub fn parse_dir(dir: &str, normalize: bool) -> Result<RootFile> {
+pub fn parse_dir(dir: &str, normalize: bool) -> Result<MScriptFile> {
     let mut services = vec![];
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
@@ -45,7 +45,7 @@ pub fn parse_dir(dir: &str, normalize: bool) -> Result<RootFile> {
             services.append(&mut file.services);
         }
     }
-    let root = RootFile { services };
+    let root = MScriptFile { services };
     Ok(root)
 }
 
@@ -66,7 +66,7 @@ pub fn parse_dir(dir: &str, normalize: bool) -> Result<RootFile> {
 ///  Ok(())
 /// }
 /// ```
-pub fn parse(fp: &str) -> Result<RootFile> {
+pub fn parse(fp: &str) -> Result<MScriptFile> {
     let mut root = match std::path::Path::new(fp).is_dir() {
         true => parse_dir(fp, false),
         false => parse_file(fp, false),

@@ -13,7 +13,7 @@ use tokio::sync::{Mutex, RwLock};
 use tower_http::{
     add_extension::AddExtensionLayer,
     cors::CorsLayer,
-    trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer},
+    trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer}, services::ServeDir,
 };
 use tracing::{event, Level};
 
@@ -50,6 +50,7 @@ pub async fn run_server(fp: &str) -> Result<()> {
         .route("/runner/reset", get(reset))
         .route("/nodes", get(get_nodes))
         .route("/nodes/:node_id", get(get_node))
+        .nest_service("/", ServeDir::new("ui/dist"))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))

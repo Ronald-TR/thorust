@@ -9,18 +9,18 @@ use petgraph::{
 use crate::{entities::graph::FilterOptions, parser::orphan_nodes};
 
 use super::{
-    entities::{conversions::build_graph, enums::TestStatus, graph::TestNode, manifest::RootFile},
+    entities::{conversions::build_graph, enums::TestStatus, graph::TestNode, manifests::scripts::MScriptFile},
     traits::GraphWorkflow,
 };
 
 #[derive(Clone)]
 pub struct Workflow {
     pub graph: DiGraph<TestNode, usize>,
-    manifest: Option<RootFile>,
+    manifest: Option<MScriptFile>,
 }
 
 impl Workflow {
-    pub fn new(manifest: RootFile) -> Self {
+    pub fn new(manifest: MScriptFile) -> Self {
         let graph = build_graph(&manifest);
         Self {
             graph,

@@ -1,9 +1,9 @@
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::*;
 
-use super::{enums::TestStatus, graph::{TestNode, TestExecutable}, manifest::RootFile, storage::DbNode};
+use super::{enums::TestStatus, graph::{TestNode, TestExecutable}, storage::DbNode, manifests::scripts::MScriptFile};
 
-fn extract_test_nodes(content: &RootFile) -> Vec<TestNode> {
+fn extract_test_nodes(content: &MScriptFile) -> Vec<TestNode> {
     let mut nodes: Vec<TestNode> = Vec::new();
     let mut index: u32 = 0;
     for service in content.services.iter() {
@@ -28,7 +28,7 @@ fn extract_test_nodes(content: &RootFile) -> Vec<TestNode> {
     nodes
 }
 
-pub fn build_graph(content: &RootFile) -> DiGraph<TestNode, usize> {
+pub fn build_graph(content: &MScriptFile) -> DiGraph<TestNode, usize> {
     let mut graph = DiGraph::<TestNode, usize>::new();
     let test_nodes = extract_test_nodes(content);
     test_nodes.iter().for_each(|node| {

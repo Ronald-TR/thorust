@@ -1,4 +1,4 @@
-pub mod manifest;
+pub mod manifests;
 pub mod enums;
 pub mod graph;
 pub mod conversions;
