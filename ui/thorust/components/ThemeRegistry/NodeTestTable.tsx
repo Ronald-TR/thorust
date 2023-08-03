@@ -78,9 +78,9 @@ function Row(props: { row: ReturnType<typeof createData> }) {
           </IconButton>
         </TableCell>
         <TableCell align="left">{row.test_id}</TableCell>
-        <TableCell align="center">{row.service}</TableCell>
         <TableCell align="center">{row.name}</TableCell>
         <TableCell align="center">{row.description}</TableCell>
+        <TableCell align="center">{getTestDuration(row.history)}</TableCell>
       </TableRow>
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
@@ -127,6 +127,13 @@ function Row(props: { row: ReturnType<typeof createData> }) {
   );
 }
 
+function getTestDuration(history: any) {
+  const last = history[history.length - 1];
+  if (["Completed", "Failed"].includes(last.to_status)) {
+    return `${(last.duration_millis / 1000).toFixed(2)}s - ${last.to_status}`;
+  };
+  return 'No record - ${last.to_status}';
+}
 export default function NodeTestTable() {
   const [open, setOpen] = React.useState<{ [key: string]: boolean }>({});
   const [rows, setRows] = React.useState<ITestNode[]>([]);
@@ -162,7 +169,6 @@ export default function NodeTestTable() {
         </ListSubheader>
       }
     >
-      {/* <Box sx={{ width: "100%" }}> */}
       {Object.entries(services).map(([service, nodes]) => (
         <List>
           <ListItemButton onClick={() => handleClick(service)}>
@@ -184,9 +190,9 @@ export default function NodeTestTable() {
                   <TableRow>
                     <TableCell />
                     <TableCell align="left">Test ID</TableCell>
-                    <TableCell align="center">Service</TableCell>
                     <TableCell align="center">Name</TableCell>
                     <TableCell align="center">Description</TableCell>
+                    <TableCell align="center">Duration</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -199,7 +205,6 @@ export default function NodeTestTable() {
           </Collapse>
         </List>
       ))}
-      {/* </Box> */}
     </List>
   );
 }
