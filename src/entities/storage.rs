@@ -32,5 +32,5 @@ pub struct ProcessedHistory {
     pub to_status: String,
     pub to_created_at: String,
     pub from_created_at: String,
-    pub duration_millis: u64,
+    pub duration_millis: f64,
 }

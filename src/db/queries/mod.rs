@@ -5,7 +5,7 @@ SELECT
   to_status,
   created_at,
   next_created_at,
-  (strftime('%s', next_created_at) - strftime('%s', created_at)) * 1000 AS time_difference_millis
+  (julianday(next_created_at) - julianday(created_at))*(86400000) AS time_difference_millis
 FROM (
   SELECT
     id,
@@ -25,7 +25,7 @@ SELECT
   to_status,
   created_at,
   next_created_at,
-  (strftime('%s', next_created_at) - strftime('%s', created_at)) * 1000 AS time_difference_millis
+  (julianday(next_created_at) - julianday(created_at))*(86400000) AS time_difference_millis
 FROM (
   SELECT
     id,
