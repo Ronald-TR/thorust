@@ -1,8 +1,62 @@
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::*;
+use anyhow::Result;
 
-use super::{enums::TestStatus, graph::{TestNode, TestExecutable}, storage::DbNode, manifests::scripts::MScriptFile};
+use super::{
+    enums::TestStatus,
+    graph::{TestExecutable, TestNode},
+    manifests::scripts::MScriptFile,
+    storage::DbNode,
+};
 
+pub fn new_uuidv4() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
+
+/// Checks if the depends_on clause has valid ids (the id must exists).
+pub fn checks_depends_on(nodes: &Vec<TestNode>) -> Result<()> {
+    let mut ids: Vec<String> = Vec::new();
+    for node in nodes.iter() {
+        ids.push(node.id.clone());
+    }
+    for node in nodes.iter() {
+        if !node.depends_on.iter().any(|x| ids.contains(x)) {
+            return Err(anyhow::anyhow!(
+                "The test id '{}' has dependencies that does not exist!",
+                node.id
+            ));
+        }
+    }
+    Ok(())
+}
+pub fn to_grpcurl_command(
+    headers: &Option<Vec<String>>,
+    body: &str,
+    proto: &str,
+    address: &str,
+    method: &str,
+) -> String {
+    let body = unescape::unescape(&body).unwrap();
+    let headers = match &headers {
+        Some(headers) => headers
+            .iter()
+            .map(|x| format!("-H '{}'", x))
+            .collect::<Vec<String>>()
+            .join(" "),
+        None => "".to_string(),
+    };
+    format!(
+        "grpcurl \
+        -plaintext \
+        {} \
+        -import-path . \
+        -proto {} \
+        -d '{}' \
+        {} \
+        {}",
+        headers, proto, body, address, method
+    )
+}
 fn extract_test_nodes(content: &MScriptFile) -> Vec<TestNode> {
     let mut nodes: Vec<TestNode> = Vec::new();
     let mut index: u32 = 0;

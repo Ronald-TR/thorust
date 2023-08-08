@@ -1,9 +1,13 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-fn new_uuidv4() -> String {
-    uuid::Uuid::new_v4().to_string()
-}
+use crate::{
+    entities::{
+        enums::TestStatus,
+        graph::{TestExecutable, TestNode}, conversions::new_uuidv4,
+    },
+    traits::Manifest,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MScriptFile {
@@ -52,25 +56,6 @@ impl MScriptFile {
             }
         }
     }
-    /// Checks if the test dependencies has ids that are previously defined.
-    pub fn checks_depends_on(&self) -> Result<()> {
-        let mut ids: Vec<String> = Vec::new();
-        for service in self.services.iter() {
-            for test in service.tests.iter() {
-                ids.push(test.id.clone());
-            }
-        }
-        for service in self.services.iter() {
-            for test in service.tests.iter() {
-                for dep in test.depends_on.iter() {
-                    if !ids.contains(dep) {
-                        return Err(anyhow::anyhow!("The test id '{}' does not exist!", dep));
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
     pub fn get_test(&self, test_id: &str) -> Option<&TestUnit> {
         for service in self.services.iter() {
             for test in service.tests.iter() {
@@ -80,5 +65,36 @@ impl MScriptFile {
             }
         }
         None
+    }
+}
+
+impl Manifest for MScriptFile {
+    fn normalize(&mut self) -> Result<()> {
+        self.format_test_ids();
+        Ok(())
+    }
+    fn as_test_nodes(&self) -> Result<Vec<TestNode>> {
+        let mut nodes: Vec<TestNode> = Vec::new();
+        let mut index: u32 = 0;
+        for service in self.services.iter() {
+            for test in service.tests.iter() {
+                nodes.push(TestNode {
+                    id: test.id.clone(),
+                    index,
+                    status: vec![TestStatus::NotStarted],
+                    depends_on: test.depends_on.clone(),
+                    executable: TestExecutable {
+                        name: test.name.clone(),
+                        service: service.name.clone(),
+                        command: test.command.clone(),
+                        description: test.description.clone(),
+                        id: test.id.clone(),
+                        output: None,
+                    },
+                });
+                index += 1;
+            }
+        }
+        Ok(nodes)
     }
 }

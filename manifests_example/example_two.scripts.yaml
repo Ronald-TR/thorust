@@ -1,0 +1,68 @@
+# Another scripts manifest, all the services and tests defined here
+# will be merged with example.scripts.yaml during the parse.
+# The merge occurs because all manifests in same directory is considered one, this means
+# that their share the same context, you can refeer ids and outputs from example.scripts.yaml
+# here, and vice versa. Just take care to avoid a circular dependency.
+type: grpc
+services:
+  # name must be unique
+  - name: newFoo
+    tests:
+      - name: test1 newFoo
+        # each test id must be unique
+        # that is, the test id must be unique across all services
+        id: test1
+        description: A longer description to see the spacing on the report for the test1
+        command: sleep 3; echo "test1 newFoo"
+      - name: test2 newFoo
+        id: test2
+        description: A longer description to see the spacing on the report for the test2
+        command: sleep 3; echo "test2 newFoo"
+      - name: test3 newFoo
+        id: test3
+        description: A longer description to see the spacing on the report for the test3
+        command: sleep 3; echo "test3 newFoo"
+      - name: test4 newFoo
+        id: test4
+        description: A longer description to see the spacing on the report for the test4
+        depends_on: [test2, test3]
+        command: sleep 3; echo "test4 newFoo"
+      - name: test5 newFoo
+        description: A longer description to see the spacing on the report for the test5
+        depends_on: [test1, test3]
+        id: test5
+        command: sleep 3; echo "test5 newFoo"; exit 1
+      - name: test6 newFoo
+        description: A longer description to see the spacing on the report for the test6
+        depends_on: [test4, test5]
+        id: test6
+        command: sleep 3; echo "test6 newFoo"
+      - name: test7 newFoo
+        description: A longer description to see the spacing on the report for the test7
+        id: test7
+        depends_on: [test4, test5]
+        command: sleep 3; echo "test7 newFoo"
+
+  - name: newBar
+    tests:
+      - name: test1 newBar
+        id: test1
+        description: A longer description to see the spacing on the report for the test1
+        depends_on: [newFoo.test7]
+        command: sleep 3; echo "test1 newBar"
+      - name: test2 newBar
+        description: A longer description to see the spacing on the report for the test2
+        id: test2
+        command: sleep 3; echo "test2 newBar"
+
+  - name: nestedService
+    tests:
+      - name: test1 nestedService
+        id: test1
+        description: A longer description to see the spacing on the report for the test1
+        depends_on: [foo.test4]
+        command: sleep 3; echo "test1 newBar"
+      - name: test2 newBar
+        description: A longer description to see the spacing on the report for the test2
+        id: test2
+        command: sleep 3; echo "test2 newBar"

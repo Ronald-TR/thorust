@@ -9,6 +9,8 @@ use crate::entities::{
 
 use super::entities::graph::TestNode;
 
+
+/// Base trait for the Graph, this trait specifies the methods necessary to use the graph as a workflow by the test runners.
 pub trait GraphWorkflow {
     /// Check if the graph is cyclic.
     ///
@@ -142,6 +144,8 @@ pub trait GraphWorkflow {
     fn reset(&mut self) -> Result<()>;
 }
 
+
+/// Base trait for Runners, this trait specifies the methods responsible to run the Test nodes.
 #[async_trait::async_trait]
 pub trait RunnerWorkflow {
     /// Runs a single test node.
@@ -150,12 +154,13 @@ pub trait RunnerWorkflow {
     async fn batch_execute(&mut self, nodes: Vec<TestNode>) -> Result<()>;
     /// Loop over all available tests running them until no more tests are available to be run.
     async fn run_until_complete(&mut self) -> Result<()>;
-    /// Reset the workflow and storage to its initial state.
+    /// Reset the internal state (workflow and storage) to its initial state.
     ///
     /// An error can occur if the workflow was created from a graph and not from a manifest.
     async fn reset(&mut self) -> Result<()>;
 }
 
+/// Base Storage trait that needs to be implemeted by all storages.
 pub trait Storage: Send + Sync {
     fn insert_test_node(&self, node: &TestNode);
     fn insert_node(&self, node: DbNode) -> i64;
@@ -168,4 +173,20 @@ pub trait Storage: Send + Sync {
     fn get_processed_node_history(&self, node_id: i32) -> rusqlite::Result<Vec<ProcessedHistory>>;
     fn get_all_processed_node_history(&self) -> rusqlite::Result<Vec<ProcessedHistory>>;
     fn get_all_nodes(&self) -> rusqlite::Result<Vec<DbNode>>;
+}
+
+
+/// Base trait that needs to be implemented by all manifest types: scripts, grpc, http, etc...
+pub trait Manifest {
+    /// Checks the integrity and normalize the parsed manifest content.
+    /// 
+    /// This is particularly usefull to prevent many issues, such as:
+    /// * prevent ids that doesn't exists for being used in depends_on tag
+    /// * normalize the tests with valid format ids, e.g: `<service name>.<test id>`
+    /// * check general issues in values
+    /// * etc
+    fn normalize(&mut self) -> Result<()>;
+
+    /// Converts all tests defined in the manifest into an array of TestNode
+    fn as_test_nodes(&self) -> Result<Vec<TestNode>>;
 }
