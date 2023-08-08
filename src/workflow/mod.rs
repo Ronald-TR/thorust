@@ -6,26 +6,28 @@ use petgraph::{
     visit::Dfs,
 };
 
-use crate::{entities::graph::FilterOptions, parser::orphan_nodes};
+use crate::{
+    entities::{graph::FilterOptions, manifests::BaseManifest},
+    parser::orphan_nodes,
+};
 
 use super::{
-    entities::{conversions::build_graph, enums::TestStatus, graph::TestNode, manifests::scripts::MScriptFile},
+    entities::{enums::TestStatus, graph::TestNode},
     traits::GraphWorkflow,
 };
 
 #[derive(Clone)]
 pub struct Workflow {
     pub graph: DiGraph<TestNode, usize>,
-    manifest: Option<MScriptFile>,
+    manifest: Option<BaseManifest>,
 }
 
 impl Workflow {
-    pub fn new(manifest: MScriptFile) -> Self {
-        let graph = build_graph(&manifest);
-        Self {
-            graph,
+    pub fn new(manifest: BaseManifest) -> Result<Self> {
+        Ok(Self {
+            graph: manifest.clone().try_into()?,
             manifest: Some(manifest),
-        }
+        })
     }
     pub fn from_graph(graph: DiGraph<TestNode, usize>) -> Self {
         Self {
@@ -144,12 +146,12 @@ impl GraphWorkflow for Workflow {
     }
     fn reset(&mut self) -> Result<()> {
         // This error can occur if the workflow was created from a graph and not from a manifest.
-        let manifest = self
+        let graph: Result<DiGraph<TestNode, usize>> = self
             .manifest
-            .as_ref()
+            .clone()
+            .and_then(|x| Some(x.try_into()))
             .ok_or_else(|| anyhow::anyhow!("Cannot reset the workflow without a manifest!"))?;
-        let graph = build_graph(manifest);
-        self.graph = graph;
+        self.graph = graph?;
         Ok(())
     }
 }

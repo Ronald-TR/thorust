@@ -18,7 +18,7 @@ use thorust::workflow::Workflow;
 #[test]
 fn test_dot_render_with_update_graph_status_on_cascade() {
     let manifest = parse("manifests_example/example.scripts.yaml").unwrap();
-    let mut workflow = Workflow::new(manifest.scripts.unwrap());
+    let mut workflow =  Workflow::new(manifest).unwrap();
     let availables = workflow.availables().unwrap();
     let mut node = availables
         .iter()
@@ -131,7 +131,7 @@ fn test_dot_render_with_update_graph_status_on_cascade() {
 #[test]
 fn test_dot_render_with_update_graph_status_on_cascade_should_only_affect_directional_nodes() {
     let manifest = parse("manifests_example/example.scripts.yaml").unwrap();
-    let mut workflow = Workflow::new(manifest.scripts.unwrap());
+    let mut workflow =  Workflow::new(manifest).unwrap();
 
     let node_idx = NodeIndex::new(4);
     let mut node = workflow.graph[node_idx].clone();

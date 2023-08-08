@@ -60,7 +60,7 @@ async fn main() -> Result<()> {
     match &args.command {
         Commands::Run { file } => {
             let manifest = parse(&file).unwrap();
-            let workflow = Workflow::new(manifest.scripts.unwrap());
+            let workflow = Workflow::new(manifest)?;
             let mut runner = Runner::new(workflow)?;
             runner.run_until_complete().await?;
             println!("{}", runner.workflow.read().await.as_json());
@@ -73,7 +73,7 @@ async fn main() -> Result<()> {
         }
         Commands::Dot { file } => {
             let manifest = parse(&file).unwrap();
-            let workflow = Workflow::new(manifest.scripts.unwrap());
+            let workflow = Workflow::new(manifest)?;
             println!("{}", workflow.as_dot());
         }
     }

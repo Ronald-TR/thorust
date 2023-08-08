@@ -29,13 +29,16 @@ impl Manifest for BaseManifest {
     fn normalize(&mut self) -> Result<()> {
         if let Some(scripts) = &mut self.scripts {
             scripts.normalize()?;
+            self.scripts = Some(scripts.to_owned());
         }
         if let Some(grpc) = &mut self.grpc {
             grpc.normalize()?;
+            self.grpc = Some(grpc.to_owned());
         }
         let _ = self.as_test_nodes()?;
         Ok(())
     }
+
     fn as_test_nodes(&self) -> Result<Vec<TestNode>> {
         let mut nodes = Vec::new();
         if let Some(scripts) = &self.scripts {

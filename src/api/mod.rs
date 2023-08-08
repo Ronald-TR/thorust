@@ -41,9 +41,7 @@ pub struct RunnerSharedState {
 
 pub async fn run_server(fp: &str, show_ui: bool) -> Result<()> {
     let manifest = parse(fp)?;
-    let runner = Arc::new(RwLock::new(Runner::new(Workflow::new(
-        manifest.scripts.unwrap(),
-    ))?));
+    let runner = Arc::new(RwLock::new(Runner::new(Workflow::new(manifest)?)?));
     let shared_state = Arc::new(RunnerSharedState {
         fp: Mutex::new(fp.to_string()),
         runner,

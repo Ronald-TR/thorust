@@ -1,13 +1,10 @@
+use anyhow::Result;
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::*;
-use anyhow::Result;
 
-use super::{
-    enums::TestStatus,
-    graph::{TestExecutable, TestNode},
-    manifests::scripts::MScriptFile,
-    storage::DbNode,
-};
+use crate::traits::Manifest;
+
+use super::{graph::TestNode, manifests::BaseManifest, storage::DbNode};
 
 pub fn new_uuidv4() -> String {
     uuid::Uuid::new_v4().to_string()
@@ -20,6 +17,9 @@ pub fn checks_depends_on(nodes: &Vec<TestNode>) -> Result<()> {
         ids.push(node.id.clone());
     }
     for node in nodes.iter() {
+        if node.depends_on.is_empty() {
+            continue;
+        };
         if !node.depends_on.iter().any(|x| ids.contains(x)) {
             return Err(anyhow::anyhow!(
                 "The test id '{}' has dependencies that does not exist!",
@@ -57,34 +57,9 @@ pub fn to_grpcurl_command(
         headers, proto, body, address, method
     )
 }
-fn extract_test_nodes(content: &MScriptFile) -> Vec<TestNode> {
-    let mut nodes: Vec<TestNode> = Vec::new();
-    let mut index: u32 = 0;
-    for service in content.services.iter() {
-        for test in service.tests.iter() {
-            nodes.push(TestNode {
-                id: test.id.clone(),
-                index,
-                status: vec![TestStatus::NotStarted],
-                depends_on: test.depends_on.clone(),
-                executable: TestExecutable {
-                    name: test.name.clone(),
-                    service: service.name.clone(),
-                    command: test.command.clone(),
-                    description: test.description.clone(),
-                    id: test.id.clone(),
-                    output: None,
-                },
-            });
-            index += 1;
-        }
-    }
-    nodes
-}
 
-pub fn build_graph(content: &MScriptFile) -> DiGraph<TestNode, usize> {
+pub fn build_graph(test_nodes: Vec<TestNode>) -> DiGraph<TestNode, usize> {
     let mut graph = DiGraph::<TestNode, usize>::new();
-    let test_nodes = extract_test_nodes(content);
     test_nodes.iter().for_each(|node| {
         graph.add_node(node.clone());
     });
@@ -99,6 +74,15 @@ pub fn build_graph(content: &MScriptFile) -> DiGraph<TestNode, usize> {
         });
     }
     graph
+}
+
+impl TryFrom<BaseManifest> for DiGraph<TestNode, usize> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: BaseManifest) -> Result<Self, Self::Error> {
+        let test_nodes = value.as_test_nodes()?;
+        Ok(build_graph(test_nodes))
+    }
 }
 
 impl From<TestNode> for DbNode {
