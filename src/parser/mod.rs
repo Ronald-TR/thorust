@@ -1,12 +1,15 @@
 use anyhow::{anyhow, Result};
 use petgraph::prelude::DiGraph;
 use regex::Regex;
-use serde::{de, Deserialize, Serialize};
+use serde::de;
 use std::{fs::File, path::Path, str::FromStr};
-use strum_macros::EnumString;
 
 use crate::{
-    entities::{graph::TestNode, manifests::BaseManifest},
+    entities::{
+        enums::{ExtType, ManifestKind},
+        graph::TestNode,
+        manifests::BaseManifest,
+    },
     traits::Manifest,
 };
 
@@ -19,27 +22,10 @@ pub fn orphan_nodes<'a>(graph: &DiGraph<&'a TestNode, &'a usize>) -> Vec<&'a Tes
     orphans
 }
 
-/// Enum ParserType,
-/// defines which manifest parser to use
-#[derive(Debug, PartialEq, EnumString, Serialize, Deserialize)]
-#[strum(serialize_all = "lowercase")]
-pub enum ParserType {
-    Scripts,
-    Grpc,
-}
-
-/// Enum ExtType
-#[derive(Debug, PartialEq, EnumString, Serialize, Deserialize)]
-#[strum(serialize_all = "lowercase")]
-pub enum ExtType {
-    Json,
-    Yaml,
-}
-
 #[derive(Debug, PartialEq)]
 pub struct ParserInfo {
     pub filename: String,
-    pub parser: ParserType,
+    pub parser: ManifestKind,
     pub ext: ExtType,
 }
 
@@ -57,8 +43,8 @@ where
 pub fn parse_file(fp: &str, normalize: bool) -> Result<BaseManifest> {
     let parser_info = ParserInfo::new(fp)?;
     let (scripts, grpc) = match parser_info.parser {
-        ParserType::Scripts => (serialize_from_ext(fp, parser_info.ext)?, None),
-        ParserType::Grpc => (None, serialize_from_ext(fp, parser_info.ext)?),
+        ManifestKind::Scripts => (serialize_from_ext(fp, parser_info.ext)?, None),
+        ManifestKind::Grpc => (None, serialize_from_ext(fp, parser_info.ext)?),
     };
     let mut root = BaseManifest { scripts, grpc };
     if normalize {
@@ -130,10 +116,11 @@ impl ParserInfo {
     /// # Example
     ///
     /// ```
-    /// use thorust::parser::{ParserInfo, ParserType, ExtType};
+    /// use thorust::parser::ParserInfo;
+    /// use thorust::entities::enums::{ManifestKind, ExtType};
     ///
     /// let parser_info = ParserInfo::new("foo/bar.scripts.yaml").unwrap();
-    /// assert_eq!(parser_info.parser, ParserType::Scripts);
+    /// assert_eq!(parser_info.parser, ManifestKind::Scripts);
     /// assert_eq!(parser_info.ext, ExtType::Yaml);
     /// ```
     pub fn new(fp: &str) -> Result<ParserInfo> {
@@ -151,7 +138,7 @@ impl ParserInfo {
                 let ext_type = captures.name("ext_type").unwrap().as_str();
                 Ok(ParserInfo {
                     filename: filename.to_owned(),
-                    parser: ParserType::from_str(parser_type)?,
+                    parser: ManifestKind::from_str(parser_type)?,
                     ext: ExtType::from_str(ext_type)?,
                 })
             }
@@ -164,7 +151,10 @@ impl ParserInfo {
 mod tests {
     use std::str::FromStr;
 
-    use crate::parser::{ExtType, ParserInfo, ParserType};
+    use crate::{
+        entities::enums::{ExtType, ManifestKind},
+        parser::ParserInfo,
+    };
 
     #[test]
     fn assert_parser_ext_serialization_should_pass() {
@@ -185,10 +175,10 @@ mod tests {
         let parser_info = ParserInfo::new("foo/bar.scripts.yaml").unwrap();
 
         assert_eq!(parser_info.filename, "bar".to_string());
-        assert_eq!(parser_info.parser, ParserType::Scripts);
+        assert_eq!(parser_info.parser, ManifestKind::Scripts);
         assert_eq!(parser_info.ext, ExtType::Yaml);
     }
-    
+
     #[test]
     fn assert_parser_info_regex_wrong_file_format() {
         assert!(ParserInfo::new("foo/bar.extra_separator_unallowed.scripts.yaml").is_err());

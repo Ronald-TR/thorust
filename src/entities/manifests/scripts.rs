@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     entities::{
-        enums::TestStatus,
+        enums::{TestStatus, ManifestKind},
         graph::{TestExecutable, TestNode}, conversions::new_uuidv4,
     },
     traits::Manifest,
@@ -29,6 +29,13 @@ pub struct TestUnit {
     pub depends_on: Vec<String>,
     pub command: String,
     pub description: String,
+    pub expect: Option<ReqSpec>
+}
+
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
+pub struct ReqSpec {
+    pub status: Option<String>,
+    pub output: Option<String>,
 }
 
 impl MScriptFile {
@@ -90,6 +97,9 @@ impl Manifest for MScriptFile {
                         description: test.description.clone(),
                         id: test.id.clone(),
                         output: None,
+                        exit_code: None,
+                        kind: ManifestKind::Scripts,
+                        
                     },
                 });
                 index += 1;

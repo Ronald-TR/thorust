@@ -16,6 +16,9 @@ services:
         id: test1
         description: A longer description to see the spacing on the report for the test1
         command: sleep 3; echo "test1 foo"
+        expected:
+          status: 0
+          response: 'test1 foo'
       - name: test2 foo
         id: test2
         description: A longer description to see the spacing on the report for the test2

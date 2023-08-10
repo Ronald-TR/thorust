@@ -9,9 +9,29 @@ pub enum TestStatus {
     Running,
     // When the test has finished successfully
     Completed,
-    // When the test has failed
+    // When the test failed during execution
     Failed,
+    // When the test fails during the response checks specified
+    AssertionFailed,
     // When the test has been skipped
     // Commonly is used when the test depends on another test that has failed
     Skipped,
+}
+
+/// Enum ManifestKind,
+/// defines which manifest parser to use
+#[derive(Debug, Clone, Default, PartialEq, EnumString, Serialize, Deserialize)]
+#[strum(serialize_all = "lowercase")]
+pub enum ManifestKind {
+    Grpc,
+    #[default]
+    Scripts,
+}
+
+/// Enum ExtType
+#[derive(Debug, Clone, PartialEq, EnumString, Serialize, Deserialize)]
+#[strum(serialize_all = "lowercase")]
+pub enum ExtType {
+    Json,
+    Yaml,
 }

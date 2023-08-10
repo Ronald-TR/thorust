@@ -37,6 +37,12 @@ pub fn log_change_status(node: &TestNode, status: &TestStatus, _new_line: bool) 
             node.executable.name.bold(),
             "Failed".bold().red(),
         )),
+        TestStatus::AssertionFailed => Some(format!(
+            "{} - {} {}!",
+            node.executable.service.bold().red(),
+            node.executable.name.bold(),
+            "AssertionFailed".bold().purple(),
+        )),
         TestStatus::Skipped => Some(format!(
             "{} - {} {}!",
             node.executable.service.bold().cyan(),

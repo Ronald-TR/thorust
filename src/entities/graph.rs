@@ -1,9 +1,10 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
-use tokio::process::Command;
 
-use super::enums::TestStatus;
+use crate::services::test_executable::{grpc_call, scripts_call};
+
+use super::enums::{ManifestKind, TestStatus};
 
 pub struct FilterOptions {
     pub id: Option<String>,
@@ -11,7 +12,7 @@ pub struct FilterOptions {
     pub index: Option<u32>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct TestExecutable {
     pub id: String,
     pub service: String,
@@ -19,25 +20,17 @@ pub struct TestExecutable {
     pub command: String,
     pub description: String,
     pub output: Option<String>,
+    pub exit_code: Option<i32>,
+    pub kind: ManifestKind,
 }
 
 impl TestExecutable {
     pub async fn call(&mut self) -> Result<String> {
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg(&self.command)
-            .output()
-            .await?;
-        if !output.status.success() {
-            return Err(anyhow::anyhow!(
-                "The test '{}' failed with exit code: {}",
-                self.name,
-                output.status
-            ));
-        }
-        let output = String::from_utf8(output.stdout);
-        self.output = output.clone().map(Option::Some).unwrap_or(None);
-        Ok(output?)
+        match self.kind {
+            ManifestKind::Grpc => grpc_call(self).await?,
+            ManifestKind::Scripts => scripts_call(self).await?,
+        };
+        Ok(self.output.clone().unwrap_or_default())
     }
 }
 
@@ -76,19 +69,13 @@ impl FilterOptions {
     /// In other hands, an empty filter is completelly permissive.
     pub fn check(&self, node: &TestNode) -> bool {
         if let Some(index) = self.index {
-            if node.index != index {
-                return false;
-            }
+            return node.index == index;
         };
         if let Some(id) = &self.id {
-            if node.id != *id {
-                return false;
-            }
+            return node.id == *id;
         };
         if let Some(status) = &self.status {
-            if &node.last_status() != status {
-                return false;
-            };
+            return &node.last_status() == status;
         };
         true
     }

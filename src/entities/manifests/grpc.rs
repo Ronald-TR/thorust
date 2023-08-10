@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 use anyhow::Result;
 
-use crate::{traits::Manifest, entities::{conversions::{new_uuidv4, to_grpcurl_command}, graph::{TestNode, TestExecutable}, enums::TestStatus}};
+use crate::{traits::Manifest, entities::{conversions::{new_uuidv4, to_grpcurl_command}, graph::{TestNode, TestExecutable}, enums::{TestStatus, ManifestKind}}};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MGrpcFile {
@@ -28,13 +28,13 @@ pub struct TestUnit {
     pub proto: String,
     pub body: String,
     pub headers: Option<Vec<String>>,
-    pub expected: Option<ReqSpec>,
+    pub expect: Option<ReqSpec>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 pub struct ReqSpec {
     pub status: Option<String>,
-    pub body: Option<String>,
+    pub output: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -107,6 +107,8 @@ impl Manifest for MGrpcFile {
                         description: test.description.clone(),
                         id: test.id.clone(),
                         output: None,
+                        exit_code: None,
+                        kind: ManifestKind::Grpc,
                     },
                 });
                 index += 1;
